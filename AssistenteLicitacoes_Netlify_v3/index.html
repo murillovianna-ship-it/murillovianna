@@ -1,0 +1,428 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Assistente de Licitações — Checklist + Análise + Minutas</title>
+  <meta name="description" content="Ferramenta pessoal para organizar leitura de edital/TR, checklist e geração de minutas com base na Lei 14.133/2021." />
+  <link rel="stylesheet" href="./styles.css" />
+  <!-- PDF.js (CDN) para extrair texto de PDFs no navegador -->
+  <!-- PDF.js é carregado via /modules/pdf.js (preferindo Function same-origin) -->
+</head>
+<body>
+  <header class="topbar">
+    <div class="wrap topbar__inner">
+      <div class="brand" title="Assistente de Licitações (uso pessoal)">
+        <div class="brand__mark">AL</div>
+        <div class="brand__txt">
+          <h1>Assistente de Licitações</h1>
+          <p>Checklist • Leitura guiada • Minutas • Resumo de PDF • Lei 14.133/2021</p>
+        </div>
+      </div>
+
+      <div class="topbar__actions">
+        <button class="btn ghost" id="btnExportProject">Exportar Projeto (.json)</button>
+        <button class="btn ghost" id="btnImportProject">Importar Projeto</button>
+        <input type="file" id="importFile" accept="application/json" hidden />
+        <span class="pill" id="autosavePill">Salvo</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap app">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="card sidebar__card">
+        <div class="sidebar__head">
+          <div>
+            <div class="kicker">Projetos</div>
+            <div class="muted small">Um projeto = um edital/dispensa</div>
+          </div>
+          <button class="btn" id="btnNewProject">+ Novo</button>
+        </div>
+        <input id="searchProjects" class="input" placeholder="Buscar projeto..." />
+        <div id="projectsList" class="projects"></div>
+      </div>
+
+      <div class="card sidebar__card">
+        <div class="kicker">Como usar (modo leigo)</div>
+        <ol class="howto">
+          <li><b>Dados</b>: preencha órgão, edital, objeto e sessão.</li>
+          <li><b>PDF</b>: anexe o TR/Edital e gere um resumo estruturado.</li>
+          <li><b>Leitura guiada</b>: responda perguntas; o sistema sugere alertas.</li>
+          <li><b>Checklist</b>: aplique o preset e marque o que está ok.</li>
+          <li><b>Minutas</b>: cole trechos do edital/TR e gere a peça (esclarecimento/impugnação/recurso).</li>
+        </ol>
+        <div class="tip">
+          <b>Dica:</b> Para “embasamento forte”, sempre salve os <b>trechos</b> do edital/TR (item e página).
+        </div>
+      </div>
+    </aside>
+
+    <!-- Content -->
+    <section class="content">
+      <div class="card">
+        <div class="tabs" id="tabs">
+          <button class="tab active" data-tab="dados">1) Dados</button>
+          <button class="tab" data-tab="pdf">2) PDF → Resumo</button>
+          <button class="tab" data-tab="leitura">3) Leitura guiada</button>
+          <button class="tab" data-tab="checklist">4) Checklist</button>
+          <button class="tab" data-tab="minutas">5) Minutas</button>
+          <button class="tab" data-tab="relatorio">6) Relatório</button>
+        </div>
+
+        <!-- Dados -->
+        <div class="tabpane active" id="tab-dados">
+          <div class="grid2">
+            <div>
+              <h2>Dados do certame</h2>
+              <p class="muted">Preencha o básico. O sistema usa isso no checklist, relatório e minutas.</p>
+
+              <div class="form">
+                <div class="row">
+                  <div class="field">
+                    <label>Nome do projeto</label>
+                    <input class="input" id="p_nome" placeholder="Ex.: Pregão 12/2026 — Extintores" />
+                  </div>
+                  <div class="field">
+                    <label>Modalidade</label>
+                    <select class="input" id="p_modalidade">
+                      <option value="pregao">Pregão eletrônico</option>
+                      <option value="dispensa">Dispensa</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="field">
+                  <label>Órgão / Unidade</label>
+                  <input class="input" id="p_orgao" placeholder="Ex.: Prefeitura do Rio — Secretaria X" />
+                </div>
+
+                <div class="row">
+                  <div class="field">
+                    <label>Edital / Processo</label>
+                    <input class="input" id="p_edital" placeholder="Ex.: PE 12/2026 — Proc. 12345" />
+                  </div>
+                  <div class="field">
+                    <label>Portal / Plataforma</label>
+                    <input class="input" id="p_portal" placeholder="Ex.: Compras.gov / BEC / Banco do Brasil" />
+                  </div>
+                </div>
+
+                <div class="row">
+                  <div class="field">
+                    <label>Cidade/UF</label>
+                    <input class="input" id="p_cidade" placeholder="Ex.: Rio de Janeiro/RJ" />
+                  </div>
+                  <div class="field">
+                    <label>Critério</label>
+                    <select class="input" id="p_criterio">
+                      <option value="menor_preco">Menor preço</option>
+                      <option value="maior_desconto">Maior desconto</option>
+                      <option value="tecnica_preco">Técnica e preço</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="row">
+                  <div class="field">
+                    <label>Sessão (data/hora)</label>
+                    <input class="input" type="datetime-local" id="p_sessao" />
+                  </div>
+                  <div class="field">
+                    <label>Prazo interno (seu)</label>
+                    <input class="input" type="datetime-local" id="p_prazo_interno" />
+                  </div>
+                </div>
+
+                <div class="field">
+                  <label>Objeto (resumo)</label>
+                  <textarea class="input" id="p_objeto" rows="3" placeholder="Descreva o objeto em 2-5 linhas."></textarea>
+                </div>
+              </div>
+
+              <div class="hr"></div>
+
+              <h2>Seus dados (para timbrado e assinatura)</h2>
+              <p class="muted small">Por padrão, o timbrado é fixo (config.js). Aqui você pode registrar dados do projeto.</p>
+
+              <div class="form">
+                <div class="row">
+                  <div class="field">
+                    <label>Empresa / Nome</label>
+                    <input class="input" id="p_empresa" placeholder="Ex.: Murillo da Silva Vianna" />
+                  </div>
+                  <div class="field">
+                    <label>CNPJ</label>
+                    <input class="input" id="p_cnpj" placeholder="Ex.: 64.737.330/0001-47" />
+                  </div>
+                </div>
+                <div class="row">
+                  <div class="field">
+                    <label>Contato</label>
+                    <input class="input" id="p_contato" placeholder="Ex.: (21) 99431-8715" />
+                  </div>
+                  <div class="field">
+                    <label>Observações do projeto</label>
+                    <input class="input" id="p_obs" placeholder="Notas soltas do certame (risco, concorrentes, estratégia...)" />
+                  </div>
+                </div>
+              </div>
+
+              <div class="hr"></div>
+              <h2>Alertas rápidos</h2>
+              <p class="muted small">Esses alertas são “sugestões” com base no que você respondeu na leitura guiada.</p>
+              <div id="alertsBox" class="alerts"></div>
+              <div class="actions">
+                <button class="btn ghost" id="btnRunAnalysis">Rodar análise</button>
+                <button class="btn ghost" id="btnResetWizard">Zerar leitura guiada</button>
+              </div>
+            </div>
+
+            <div>
+              <h2>Trechos salvos (edital/TR)</h2>
+              <p class="muted">Cole aqui os itens mais importantes: habilitação, especificação, prazos, penalidades, garantias.</p>
+
+              <div class="form">
+                <div class="row">
+                  <div class="field">
+                    <label>Referência (item/página)</label>
+                    <input class="input" id="t_item" placeholder="Ex.: Item 9.2 — pág. 14" />
+                  </div>
+                  <div class="field">
+                    <label>Título</label>
+                    <input class="input" id="t_titulo" placeholder="Ex.: Habilitação técnica — atestado" />
+                  </div>
+                </div>
+                <div class="field">
+                  <label>Trecho</label>
+                  <textarea class="input" id="t_texto" rows="6" placeholder="Cole o trecho aqui (sem medo)."></textarea>
+                </div>
+                <div class="actions">
+                  <button class="btn" id="btnAddTrecho">+ Adicionar</button>
+                  <button class="btn ghost" id="btnClearTrechos">Limpar trechos</button>
+                </div>
+              </div>
+
+              <div class="hr"></div>
+              <div id="trechosList"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PDF -->
+        <div class="tabpane" id="tab-pdf">
+          <h2>PDF → Resumo estruturado (IA)</h2>
+          <p class="muted">
+            Aqui você anexa um PDF (TR/Edital) e o sistema extrai o texto no navegador.
+            Depois, envia apenas o texto extraído para uma <b>Função do Netlify</b>, que chama a OpenAI API com sua chave (segura).
+          </p>
+
+          <div class="pdf-grid">
+            <div class="card inner">
+              <div class="kicker">1) Anexar PDF</div>
+              <input id="pdfFile" class="input" type="file" accept="application/pdf" />
+              <div class="small muted" id="pdfStatus">Nenhum arquivo selecionado.</div>
+
+              <div class="hr"></div>
+              <div class="kicker">2) O que você quer obter?</div>
+
+              <div class="form">
+                <div class="row">
+                  <div class="field">
+                    <label>Tipo de documento</label>
+                    <select id="pdfDocType" class="input">
+                      <option value="tr">Termo de Referência (TR)</option>
+                      <option value="edital">Edital</option>
+                      <option value="anexo">Anexo / Outro</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label>Objetivo</label>
+                    <select id="pdfGoal" class="input">
+                      <option value="resumo">Resumo executivo + checklist + riscos</option>
+                      <option value="checklist">Checklist detalhado (documentos e prazos)</option>
+                      <option value="impugnacao">Mapear pontos impugnáveis/contestáveis</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="field">
+                  <label>Observação (opcional)</label>
+                  <input id="pdfNote" class="input" placeholder="Ex.: foco em exigências técnicas e habilitação; verificar restrição de marca." />
+                </div>
+
+                <div class="actions">
+                  <button class="btn" id="btnPdfExtract">Extrair texto do PDF</button>
+                  <button class="btn ghost" id="btnPdfSummarize" disabled>Gerar resumo com IA</button>
+                </div>
+              </div>
+
+              <div class="hr"></div>
+              <div class="kicker">Texto extraído</div>
+              <textarea class="input mono" id="pdfText" rows="10" placeholder="(O texto extraído do PDF aparece aqui)"></textarea>
+              <div class="small muted">
+                Dica: se o seu PDF for “scan/foto”, a extração pode vir vazia. Aí você vai precisar de OCR (fora do escopo deste zip).
+              </div>
+            </div>
+
+            <div class="card inner">
+              <div class="kicker">Saída (resumo estruturado)</div>
+              <div class="actions">
+                <button class="btn ghost" id="btnPdfToTrechos" disabled>Salvar pontos como “Trechos”</button>
+                <button class="btn ghost" id="btnPdfCopy" disabled>Copiar resumo</button>
+              </div>
+
+              <pre id="pdfOut" class="pre"></pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- Leitura guiada -->
+        <div class="tabpane" id="tab-leitura">
+          <div class="wizard">
+            <div class="wizard__left">
+              <h2>Leitura guiada (passo a passo)</h2>
+              <p class="muted">Responda as perguntas. No final, o sistema sugere alertas e um embasamento legal base.</p>
+              <div id="wizardSteps" class="steps"></div>
+            </div>
+
+            <div class="wizard__right">
+              <div class="wizard__pane" id="wizardPane"></div>
+              <div class="hr"></div>
+              <div class="actions">
+                <button class="btn" id="btnRunAnalysis2">Atualizar alertas</button>
+                <button class="btn ghost" id="btnResetWizard2">Zerar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Checklist -->
+        <div class="tabpane" id="tab-checklist">
+          <div class="rowhead">
+            <div>
+              <h2>Checklist</h2>
+              <p class="muted">Aplique o preset e preencha “onde no edital/TR”. Isso fortalece seu relatório e suas minutas.</p>
+            </div>
+            <div class="actions">
+              <button class="btn" id="btnApplyPreset">Aplicar preset</button>
+              <button class="btn ghost" id="btnResetChecklist">Zerar checklist</button>
+            </div>
+          </div>
+
+          <div id="checklistContainer"></div>
+        </div>
+
+        <!-- Minutas -->
+        <div class="tabpane" id="tab-minutas">
+          <div class="grid2">
+            <div>
+              <h2>Gerar minuta</h2>
+              <p class="muted">Preencha os campos e clique em “Gerar”. Depois copie para Word/Docs ou baixe em .doc timbrado.</p>
+
+              <div class="form">
+                <div class="row">
+                  <div class="field">
+                    <label>Tipo</label>
+                    <select class="input" id="m_tipo">
+                      <option value="esclarecimento">Pedido de esclarecimento</option>
+                      <option value="impugnacao">Impugnação ao edital</option>
+                      <option value="recurso">Recurso administrativo</option>
+                      <option value="contrarrazoes">Contrarrazões</option>
+                      <option value="diligencia">Manifestação / diligência</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label>Tom</label>
+                    <select class="input" id="m_tom">
+                      <option value="tecnico">Técnico</option>
+                      <option value="formal">Formal</option>
+                      <option value="curto">Curto</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="field">
+                  <label>Resumo do ponto</label>
+                  <textarea class="input" id="m_resumo" rows="3" placeholder="Explique o problema em 3-8 linhas."></textarea>
+                </div>
+
+                <div class="field">
+                  <label>Pedido (objetivo)</label>
+                  <textarea class="input" id="m_pedido" rows="2" placeholder="Ex.: que seja aceita especificação por desempenho, com equivalência, ou retificação do item..."></textarea>
+                </div>
+
+                <div class="row">
+                  <div class="field">
+                    <label>Referência (item/página)</label>
+                    <input class="input" id="m_item" placeholder="Ex.: Item 9.2 — pág. 14" />
+                  </div>
+                  <div class="field">
+                    <label>Destino (A/C)</label>
+                    <input class="input" id="m_destino" placeholder="Pregoeiro(a) / Agente de contratação" />
+                  </div>
+                </div>
+
+                <div class="field">
+                  <label>Trecho do edital/TR</label>
+                  <textarea class="input mono" id="m_trecho" rows="6" placeholder="Cole o trecho aqui (ou clique em “Inserir do último trecho salvo”)."></textarea>
+                </div>
+
+                <div class="field">
+                  <label>Observações (impactos, riscos, viabilidade)</label>
+                  <textarea class="input" id="m_obs" rows="3"></textarea>
+                </div>
+
+                <div class="actions">
+                  <button class="btn" id="btnGenerateDoc">Gerar minuta</button>
+                  <button class="btn ghost" id="btnInsertFromTrechos">Inserir do último trecho salvo</button>
+                  <button class="btn ghost" id="btnClearDoc">Limpar</button>
+                </div>
+
+                <div class="hr"></div>
+
+                <div class="actions">
+                  <button class="btn ghost" id="btnCopyDoc">Copiar</button>
+                  <button class="btn ghost" id="btnDownloadTxt">Baixar .txt</button>
+                  <button class="btn" id="btnDownloadDoc">Baixar .doc (timbrado)</button>
+                  <button class="btn ghost" id="btnPrint">Imprimir</button>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <h2>Pré-visualização</h2>
+              <p class="muted small">O embasamento legal é montado com base local (lei14133.txt) + teses da leitura guiada.</p>
+              <pre id="docPreview" class="pre"></pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- Relatório -->
+        <div class="tabpane" id="tab-relatorio">
+          <div class="rowhead">
+            <div>
+              <h2>Relatório</h2>
+              <p class="muted">Resumo completo do projeto (checklist + alertas + trechos). Excelente para não se perder.</p>
+            </div>
+            <div class="actions">
+              <button class="btn ghost" id="btnCopyReport">Copiar</button>
+              <button class="btn ghost" id="btnPrintReport">Imprimir</button>
+            </div>
+          </div>
+          <pre id="reportBox" class="pre"></pre>
+        </div>
+      </div>
+
+      <footer class="footnote">
+        <div class="muted small">
+          Base legal: Lei 14.133/2021 via <code>assets/lei14133.txt</code> (uso pessoal). Resumos de PDF usam OpenAI API via Netlify Function.
+        </div>
+      </footer>
+    </section>
+  </main>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
